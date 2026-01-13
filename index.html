@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SideScore</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="/static/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">SS</div>
+      <div>
+        <div class="title">SideScore</div>
+        <div class="subtitle">Follow live scores • Pin to a mini window (Chrome)</div>
+      </div>
+    </div>
+
+    <div class="actions">
+    <div class="seg" id="leagueFilter" aria-label="League filter">
+        <button type="button" data-filter="all" class="seg-btn is-active">All</button>
+        <button type="button" data-filter="pl" class="seg-btn">PL</button>
+        <button type="button" data-filter="ch" class="seg-btn">Champ</button>
+        <button type="button" data-filter="l1" class="seg-btn">L1</button>
+        <button type="button" data-filter="l2" class="seg-btn">L2</button>
+    </div>
+
+    <button id="btnFollowAllLive" class="btn" type="button" title="Follow all currently live matches">
+        Follow all live
+    </button>
+
+    <button id="btnClearFollows" class="btn" type="button" title="Remove all followed matches">
+        Clear follows
+    </button>
+
+    <button id="btnOpenPin" class="btn btn-primary" type="button">
+        Open Pinned Window
+    </button>
+    <button id="btnClosePin" class="btn" type="button" disabled>
+        Close
+    </button>
+    </div>
+
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <div class="card-head">
+        <h2>Followed</h2>
+        <p class="muted">Matches you’ve followed will appear in the pinned window.</p>
+      </div>
+      <div id="followedList" class="followed"></div>
+    </section>
+
+    <section id="leagues" class="leagues"></section>
+  </main>
+
+  <footer class="footer">
+    <span class="muted">
+      Note: Document Picture-in-Picture requires Chrome and a secure context (localhost is fine).
+    </span>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
