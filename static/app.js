@@ -1,5 +1,4 @@
 /**
- * Static MVP data (replace with API-Football later)
  * - status: "LIVE" | "UPCOMING" | "NONE"
  * - minute only used for LIVE
  */
@@ -72,9 +71,7 @@ async function startPolling(){
 startPolling();
 
 
-// --- Static sample matches ---
 // For each league: include live matches if any; otherwise upcoming.
-// (You can tweak these to test empty states.)
 let LIVE_DATA = {
   pl: [],
   ch: [],
@@ -172,7 +169,7 @@ function renderFilterControls(active){
 }
 
 function renderQuickActions(){
-  // Show count of currently live games in button label (nice polish)
+  // Show count of currently live games in button label
   const liveCount = allMatches().filter(m => m.status === "LIVE").length;
   btnFollowAllLive.textContent = liveCount > 0 ? `Follow all live (${liveCount})` : "Follow all live";
 }
@@ -450,7 +447,7 @@ btnClearFollows.addEventListener("click", () => {
   render();
 });
 
-// ---------- (Optional) fake “minute ticking” for the static MVP ----------
+
 setInterval(() => {
   // increment minutes for LIVE matches to demonstrate “live updates”
   for (const lg of LEAGUES){

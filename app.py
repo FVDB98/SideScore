@@ -20,7 +20,6 @@ if not API_KEY:
 TZ = "Europe/London"
 LONDON = ZoneInfo(TZ)
 
-# ✅ You can change these if needed (IDs can be verified via the Leagues endpoint)
 LEAGUES = [
     {"id": 39, "slug": "pl", "name": "Premier League"},
     {"id": 40, "slug": "ch", "name": "Championship"},
@@ -84,7 +83,7 @@ def format_minute(fixture: dict) -> str:
     if short == "HT":
         return "HT"
     if elapsed is None:
-        return ""  # upcoming: we’ll show KO time on frontend if you want
+        return ""  # upcoming: show KO time
     if extra:
         return f"{elapsed}+{extra}'"
     return f"{elapsed}'"
@@ -136,7 +135,7 @@ def scores():
     league_ids = [str(l["id"]) for l in LEAGUES]
     live_param = "-".join(league_ids)
 
-    # 1) Live fixtures for all our leagues (single call)
+    # 1) Live fixtures for all leagues
     def fetch_live():
         data = api_get("/fixtures", {"live": live_param, "timezone": TZ})
         return data.get("response", [])
