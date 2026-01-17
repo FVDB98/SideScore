@@ -9,6 +9,13 @@ const LEAGUES = [
   { id: "l2",  name: "League Two" }
 ];
 
+let LIVE_DATA = {
+  pl: [],
+  ch: [],
+  l1: [],
+  l2: []
+};
+
 const POLL_MS = 30000; // adjust if needed
 
 function isoToLocalKickoff(iso){
@@ -47,12 +54,26 @@ async function fetchScores(){
   // Build per-league arrays: if live exists use live else upcoming
   const leagues = data.leagues;
 
-  const next = {};
-  for (const key of ["pl","ch","l1","l2"]){
-    const bucket = leagues[key];
-    const list = (bucket.live && bucket.live.length) ? bucket.live : (bucket.upcoming || []);
-    next[key] = list.map(toMatchModel);
-  }
+  const leagueNames = {
+  pl: "Premier League",
+  ch: "Championship",
+  l1: "League One",
+  l2: "League Two"
+};
+
+const next = {};
+for (const key of ["pl","ch","l1","l2"]){
+  const bucket = leagues[key];
+  const list = (bucket.live && bucket.live.length) ? bucket.live : (bucket.upcoming || []);
+
+  // Convert API fixture -> your UI match model, AND attach leagueName
+  next[key] = list.map(f => {
+    const m = toMatchModel(f);
+    m.leagueName = leagueNames[key];
+    return m;
+  });
+}
+
 
   LIVE_DATA = next;
   render();
@@ -68,16 +89,6 @@ async function startPolling(){
   }, POLL_MS);
 }
 
-startPolling();
-
-
-// For each league: include live matches if any; otherwise upcoming.
-let LIVE_DATA = {
-  pl: [],
-  ch: [],
-  l1: [],
-  l2: []
-};
 
 const STORAGE_KEY = "pinscores_followed_match_ids";
 const STORAGE_FILTER_KEY = "pinscores_league_filter";
@@ -248,8 +259,8 @@ function renderMatchRow(m, lg, followed){
   const awayAb = getAbbr(m.away);
 
   const meta = m.status === "LIVE"
-    ? `<span class="status-live">LIVE</span> • ${m.minute}'`
-    : `<span class="status-upcoming">UPCOMING</span> • ${m.kickoff}`;
+  ? `<span class="status-live">LIVE</span> • ${m.minute}`
+  : `<span class="status-upcoming">UPCOMING</span> • ${m.minute}`;
 
   return `
     <div class="match">
@@ -272,7 +283,7 @@ function renderMatchRow(m, lg, followed){
 }
 
 function formatScoreline(m){
-  if (m.status === "LIVE") return `${m.homeScore} : ${m.awayScore}`;
+  if (m.status === "LIVE") return `${m.homeGoals} : ${m.awayGoals}`;
   return `vs`;
 }
 
@@ -447,19 +458,6 @@ btnClearFollows.addEventListener("click", () => {
   render();
 });
 
-
-setInterval(() => {
-  // increment minutes for LIVE matches to demonstrate “live updates”
-  for (const lg of LEAGUES){
-    const list = SAMPLE[lg.id] || [];
-    for (const m of list){
-      if (m.status === "LIVE" && typeof m.minute === "number"){
-        m.minute = Math.min(m.minute + 1, 90);
-      }
-    }
-  }
-  render();
-}, 15000); // every 15s
-
 // initial render
 render();
+startPolling();
