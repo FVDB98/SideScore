@@ -5,6 +5,13 @@ const LEAGUES = [
   { id: "l2",  name: "League Two" }
 ];
 
+const leagueNames = {
+  pl: "Premier League",
+  ch: "Championship",
+  l1: "League One",
+  l2: "League Two"
+};
+
 let LIVE_DATA = {
   pl: [],
   ch: [],
@@ -40,14 +47,15 @@ function isoToLocalKickoff(iso){
 }
 
 function toMatchModel(f){
-
   const hg = (f.homeGoals ?? 0);
   const ag = (f.awayGoals ?? 0);
+
+  const kickoff = isoToLocalKickoff(f.kickoffISO); 
 
   const status = f.isLive ? "LIVE" : "UPCOMING";
   const meta = f.isLive
     ? (f.minute || "")
-    : (isoToLocalKickoff(f.kickoffISO) ? `KO ${isoToLocalKickoff(f.kickoffISO)}` : "");
+    : (kickoff ? `KO ${kickoff}` : "");
 
   return {
     id: f.id,
@@ -56,9 +64,11 @@ function toMatchModel(f){
     homeGoals: hg,
     awayGoals: ag,
     status,
-    minute: meta
+    minute: meta,
+    kickoff, // useful for followed / PiP
   };
 }
+
 
 // Calling endpoint, finding matches for each league (live first, then upcoming), and normalizing to match model
 async function fetchScores(){
@@ -72,50 +82,45 @@ async function fetchScores(){
   const data = await res.json();
 
   // 4) Pull out leagues object from response
-  const leagues = data.leagues;
-
-  // 5) Map league keys to user friendly names
-  const leagueNames = {
-    pl: "Premier League",
-    ch: "Championship",
-    l1: "League One",
-    l2: "League Two"
-  };
-
+  const leagues = data?.leagues || {};
   const next = {};
 
+  // 5) For each league, pick live matches if any, else upcoming
+  for (const key of ["pl","ch","l1","l2"]) {
+    const bucket = leagues?.[key] || { live: [], upcoming: [] };
 
-  for (const key of ["pl","ch","l1","l2"]){
-    // 6) Grab the leagues above bucket from the API response
-    const bucket = leagues[key];
+    const list =
+      (Array.isArray(bucket.live) && bucket.live.length) ? bucket.live :
+      (Array.isArray(bucket.upcoming) ? bucket.upcoming : []);
 
-    // 7) Target live matches, fall back to upcoming if none live
-    const list = (bucket.live && bucket.live.length) ? bucket.live : (bucket.upcoming || []);
-
-    // 8) Convert API fixture object into UI match model, AND attach leagueName for display
     next[key] = list.map(f => {
-      const m = toMatchModel(f); // normalize
+      const m = toMatchModel(f);
       m.leagueName = leagueNames[key];
       return m;
     });
   }
-
+  // 6) Replace LIVE_DATA with new data
   LIVE_DATA = next;
+  console.log("LIVE_DATA counts:", Object.fromEntries(Object.entries(LIVE_DATA).map(([k,v]) => [k, v.length])));
 
-  // 9) Trigger UI update
+  // 7) Trigger UI update
   render();
 }
 
 async function startPolling(){
   // initial fetch
-  try { await fetchScores(); }
-  catch(e){ console.warn(e); }
+  const run = async () => {
+    try {
+      await fetchScores();
+    } catch (e) {
+      console.error("fetchScores failed:", e);
+      toast?.(e?.message || "Fetch failed");
+    }
+  };
 
+  await run();
   // periodic refresh
-  setInterval(async () => {
-    try { await fetchScores(); }
-    catch(e){ console.warn(e); }
-  }, POLL_MS);
+  setInterval(run, POLL_MS);
 }
 
 // Team name abbreviation
