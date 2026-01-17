@@ -483,7 +483,7 @@ btnFollowAllLive.addEventListener("click", () => {
   render();
 });
 
-// Clear all followed matches
+// Clear followed matches
 btnClearFollows.addEventListener("click", () => {
   saveFollowedSet(new Set());
   toast("Cleared followed matches");

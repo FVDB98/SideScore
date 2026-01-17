@@ -35,23 +35,32 @@ TODAY_TTL_SECONDS = int(os.getenv("TODAY_TTL_SECONDS", "300"))    # upcoming can
 
 def season_start_year(dt: datetime) -> int:
     """
-    API-Football uses 'season' as a year. For English leagues, that’s typically the season start year:
-    - Aug 2025 -> season 2025
-    - Jan 2026 -> season 2025
+    Convert a datetime to the football season start year.
+
+    The API expects seasons labelled by the year the season STARTS.
+    English football seasons run from August to May
+     - Aug 2025 is the 2025 season
+     - Jan 2026 is still the 2025 season
+
+     Rule: if month is July (7) or later, season = year, else season = year - 1
     """
     return dt.year if dt.month >= 7 else dt.year - 1
 
 
+# call the API and return JSON data
 def api_get(path: str, params: dict):
+    # construct full URL with headers
     url = f"{API_BASE}{path}"
     headers = {
         "x-apisports-key": API_KEY,
     }
+    # 1) Send GET request 2) raise for HTTP errors 3) return JSON data
     resp = requests.get(url, headers=headers, params=params, timeout=10)
     resp.raise_for_status()
     return resp.json()
 
 
+# Simple caching - prevent excessive API calls. (will reset when server / app restarts)
 def cached(key: str, ttl: int, fetcher):
     now = time.time()
     entry = CACHE.get(key)
@@ -62,18 +71,18 @@ def cached(key: str, ttl: int, fetcher):
     return data
 
 
+# Create team abbreviation from API team object
 def team_abbr(team_obj: dict) -> str:
-    # API often returns team.code, otherwise derive
+    # If team has a code, use that (e.g. "MUN" for Manchester United), else derive from name
     code = (team_obj.get("code") or "").strip()
     if code:
         return code.upper()
     name = (team_obj.get("name") or "").strip().upper()
-    # simple fallback: first 3 letters of each word combined, then slice
     compact = "".join([w[:3] for w in name.split() if w])
     compact = compact[:3] if len(compact) >= 3 else (name[:3] if len(name) >= 3 else name)
     return compact
 
-
+# Format the minute string for a fixture
 def format_minute(fixture: dict) -> str:
     st = fixture.get("status", {}) or {}
     short = st.get("short")
@@ -89,6 +98,7 @@ def format_minute(fixture: dict) -> str:
     return f"{elapsed}'"
 
 
+# Normalize a fixture item from the API into UI format
 def normalize_fixture(item: dict) -> dict:
     fixture = item.get("fixture", {}) or {}
     league = item.get("league", {}) or {}
@@ -99,13 +109,14 @@ def normalize_fixture(item: dict) -> dict:
     away = teams.get("away", {}) or {}
 
     status = (fixture.get("status", {}) or {}).get("short", "")
-    # upcoming typically "NS", live could be "1H/2H/HT/ET/P/BT" etc.
-    is_live = status in {"1H", "2H", "HT", "ET", "P", "BT"}  # good-enough MVP set
-    is_upcoming = status == "NS"
+
+    is_live = status in {"1H", "2H", "HT", "ET", "P", "BT"} # live statuses
+    is_upcoming = status == "NS" # not started / upcoming
 
     dt_str = fixture.get("date")
     kickoff_iso = dt_str  # keep as ISO string
 
+    # return normalized dict
     return {
         "id": str(fixture.get("id")),
         "leagueId": int(league.get("id") or 0),
@@ -121,11 +132,12 @@ def normalize_fixture(item: dict) -> dict:
     }
 
 
+# flask route - home page
 @app.get("/")
 def index():
     return send_from_directory(".", "index.html")
 
-
+# flask route - scores API
 @app.get("/api/scores")
 def scores():
     now = datetime.now(LONDON)
@@ -144,12 +156,12 @@ def scores():
 
     live_norm = [normalize_fixture(x) for x in live_items]
 
-    # group live by leagueId for quick lookup
+    # Group live fixtures by league
     live_by_league = {}
     for f in live_norm:
         live_by_league.setdefault(f["leagueId"], []).append(f)
 
-    # 2) If a league has no live games, fetch today's fixtures for that league and keep only upcoming (NS)
+    # 2) If a league has no live games, fetch today's fixtures for that league and show as upcoming
     result = {}
     for lg in LEAGUES:
         lid = lg["id"]
