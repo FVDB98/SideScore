@@ -432,20 +432,20 @@ body{
 
 /* League header colour tints */
 .league--pl .league-head{
-  background: linear-gradient(180deg, rgba(88, 28, 135, 0.12), rgba(255,255,255,1));
+  background: linear-gradient(180deg, rgba(88, 28, 135, 0.5), rgba(255,255,255,1));
 }
 .league--ch .league-head{
-  background: linear-gradient(180deg, rgba(29, 78, 216, 0.10), rgba(255,255,255,1));
+  background: linear-gradient(180deg, rgba(29, 78, 216, 0.5), rgba(255,255,255,1));
 }
 .league--l1 .league-head{
-  background: linear-gradient(180deg, rgba(22, 163, 74, 0.10), rgba(255,255,255,1));
+  background: linear-gradient(180deg, rgba(22, 163, 74, 0.5), rgba(255,255,255,1));
 }
 .league--l2 .league-head{
-  background: linear-gradient(180deg, rgba(217, 119, 6, 0.10), rgba(255,255,255,1));
+  background: linear-gradient(180deg, rgba(217, 119, 6, 0.5), rgba(255,255,255,1));
 }
 
 /* Optional: slightly stronger badge outline to match tint */
-.league--pl .badge{ border-color: rgba(88, 28, 135, 0.18); }
-.league--ch .badge{ border-color: rgba(29, 78, 216, 0.18); }
-.league--l1 .badge{ border-color: rgba(22, 163, 74, 0.18); }
-.league--l2 .badge{ border-color: rgba(217, 119, 6, 0.18); }
+.league--pl .badge{ border-color: rgba(89, 28, 135, 0.586); }
+.league--ch .badge{ border-color: rgba(29, 78, 216, 0.586); }
+.league--l1 .badge{ border-color: rgba(22, 163, 74, 0.586); }
+.league--l2 .badge{ border-color: rgba(217, 119, 6, 0.586); }
