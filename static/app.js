@@ -1,7 +1,3 @@
-/**
- * - status: "LIVE" | "UPCOMING" | "NONE"
- * - minute only used for LIVE
- */
 const LEAGUES = [
   { id: "pl",  name: "Premier League" },
   { id: "ch",  name: "Championship" },
@@ -16,17 +12,35 @@ let LIVE_DATA = {
   l2: []
 };
 
-const POLL_MS = 30000; // adjust if needed
+const POLL_MS = 30000; // refresh every 30s
 
+const STORAGE_KEY = "pinscores_followed_match_ids";
+const STORAGE_FILTER_KEY = "pinscores_league_filter";
+
+const leaguesEl = document.getElementById("leagues");
+const followedEl = document.getElementById("followedList");
+const btnOpenPin = document.getElementById("btnOpenPin");
+const btnClosePin = document.getElementById("btnClosePin");
+
+const leagueFilterEl = document.getElementById("leagueFilter");
+const btnFollowAllLive = document.getElementById("btnFollowAllLive");
+const btnClearFollows = document.getElementById("btnClearFollows");
+const toastEl = document.getElementById("toast");
+
+let pipWin = null;
+
+let toastTimer = null;
+
+//Date and time fetching
 function isoToLocalKickoff(iso){
   if (!iso) return "";
   const d = new Date(iso);
-  // show in UK style
+  // localise to UK
   return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
 function toMatchModel(f){
-  // goals can be null for upcoming
+
   const hg = (f.homeGoals ?? 0);
   const ag = (f.awayGoals ?? 0);
 
@@ -46,67 +60,65 @@ function toMatchModel(f){
   };
 }
 
+// Calling endpoint, finding matches for each league (live first, then upcoming), and normalizing to match model
 async function fetchScores(){
+  // 1) Request scores from API
   const res = await fetch("/api/scores", { cache: "no-store" });
+
+  // 2) Handle errors + parse
   if (!res.ok) throw new Error(`API error ${res.status}`);
+
+  // 3) parse JSON
   const data = await res.json();
 
-  // Build per-league arrays: if live exists use live else upcoming
+  // 4) Pull out leagues object from response
   const leagues = data.leagues;
 
+  // 5) Map league keys to user friendly names
   const leagueNames = {
-  pl: "Premier League",
-  ch: "Championship",
-  l1: "League One",
-  l2: "League Two"
-};
+    pl: "Premier League",
+    ch: "Championship",
+    l1: "League One",
+    l2: "League Two"
+  };
 
-const next = {};
-for (const key of ["pl","ch","l1","l2"]){
-  const bucket = leagues[key];
-  const list = (bucket.live && bucket.live.length) ? bucket.live : (bucket.upcoming || []);
+  const next = {};
 
-  // Convert API fixture -> your UI match model, AND attach leagueName
-  next[key] = list.map(f => {
-    const m = toMatchModel(f);
-    m.leagueName = leagueNames[key];
-    return m;
-  });
-}
 
+  for (const key of ["pl","ch","l1","l2"]){
+    // 6) Grab the leagues above bucket from the API response
+    const bucket = leagues[key];
+
+    // 7) Target live matches, fall back to upcoming if none live
+    const list = (bucket.live && bucket.live.length) ? bucket.live : (bucket.upcoming || []);
+
+    // 8) Convert API fixture object into UI match model, AND attach leagueName for display
+    next[key] = list.map(f => {
+      const m = toMatchModel(f); // normalize
+      m.leagueName = leagueNames[key];
+      return m;
+    });
+  }
 
   LIVE_DATA = next;
+
+  // 9) Trigger UI update
   render();
 }
 
 async function startPolling(){
+  // initial fetch
   try { await fetchScores(); }
   catch(e){ console.warn(e); }
 
+  // periodic refresh
   setInterval(async () => {
     try { await fetchScores(); }
     catch(e){ console.warn(e); }
   }, POLL_MS);
 }
 
-
-const STORAGE_KEY = "pinscores_followed_match_ids";
-const STORAGE_FILTER_KEY = "pinscores_league_filter";
-
-const leaguesEl = document.getElementById("leagues");
-const followedEl = document.getElementById("followedList");
-const btnOpenPin = document.getElementById("btnOpenPin");
-const btnClosePin = document.getElementById("btnClosePin");
-
-const leagueFilterEl = document.getElementById("leagueFilter");
-const btnFollowAllLive = document.getElementById("btnFollowAllLive");
-const btnClearFollows = document.getElementById("btnClearFollows");
-const toastEl = document.getElementById("toast");
-
-
-let pipWin = null;
-
-// ---------- Helpers ----------
+// Team name abbreviation
 function getAbbr(teamName){
   const parts = teamName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 1) return parts[0].slice(0,3).toUpperCase();
@@ -115,6 +127,7 @@ function getAbbr(teamName){
   return ab.toUpperCase();
 }
 
+// Storing and retrieving followed matches (persistence layer)
 function loadFollowedSet(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -128,6 +141,11 @@ function loadFollowedSet(){
 function saveFollowedSet(set){
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
 }
+
+
+// Combine all matches across leagues into single flat array
+// LIVE_DATA is grouped by league 
+// Return a single array, adding 'leagueId' to each match for reference
 
 function allMatches(){
   return Object.entries(LIVE_DATA).flatMap(([leagueId, matches]) =>
@@ -148,7 +166,7 @@ function saveLeagueFilter(val){
   localStorage.setItem(STORAGE_FILTER_KEY, val);
 }
 
-let toastTimer = null;
+
 function toast(msg){
   if (!toastEl) return;
   toastEl.textContent = msg;
@@ -157,7 +175,7 @@ function toast(msg){
   toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1600);
 }
 
-// ---------- Rendering ----------
+// UI refresh - take user preferences (followed matches, league filter) and render the UI
 function render(){
   const followed = loadFollowedSet();
   const filter = loadLeagueFilter();
@@ -167,10 +185,11 @@ function render(){
   renderFollowed(followed);
   renderLeagues(followed, filter);
 
-  // keep PiP in sync if open
+  // keeps PiP in sync if open
   renderPinnedWindow(followed);
 }
 
+// Update league filter UI
 function renderFilterControls(active){
   if (!leagueFilterEl) return;
   leagueFilterEl.querySelectorAll(".seg-btn").forEach(b => {
@@ -179,17 +198,18 @@ function renderFilterControls(active){
   });
 }
 
+// Allow following all live matches at once (And show count)
 function renderQuickActions(){
-  // Show count of currently live games in button label
   const liveCount = allMatches().filter(m => m.status === "LIVE").length;
   btnFollowAllLive.textContent = liveCount > 0 ? `Follow all live (${liveCount})` : "Follow all live";
 }
 
+// Show followed matches in the followed section
 function renderFollowed(followed){
   const matches = [...followed].map(id => findMatchById(id)).filter(Boolean);
 
   if (matches.length === 0){
-    followedEl.innerHTML = `<div class="empty">No followed matches yet. Tap “Follow” on a match to pin it.</div>`;
+    followedEl.innerHTML = `<div class="empty">No followed matches. Tap “Follow” on a match to pin it.</div>`;
     return;
   }
 
@@ -216,6 +236,11 @@ function renderFollowed(followed){
   });
 }
 
+// Render matches by league
+// Uses current league filter to limit shown leagues
+// For each leave, show live matches first, then upcoming
+// Add count for live/upcoming as badge
+// Allow follow/unfollow from each match row
 function renderLeagues(followed, filter){
   const leaguesToShow = filter === "all" ? LEAGUES : LEAGUES.filter(l => l.id === filter);
 
@@ -244,7 +269,7 @@ function renderLeagues(followed, filter){
     `;
   }).join("");
 
-  // bind follow/unfollow
+  // Linking follow/unfollow buttons
   leaguesEl.querySelectorAll("[data-follow]").forEach(btn => {
     btn.addEventListener("click", () => toggleFollow(btn.getAttribute("data-follow"), true));
   });
@@ -253,14 +278,16 @@ function renderLeagues(followed, filter){
   });
 }
 
+// Render a single match row with follow/unfollow button
 function renderMatchRow(m, lg, followed){
+  // is this match followed?
   const isFollowed = followed.has(m.id);
   const homeAb = getAbbr(m.home);
   const awayAb = getAbbr(m.away);
 
   const meta = m.status === "LIVE"
-  ? `<span class="status-live">LIVE</span> • ${m.minute}`
-  : `<span class="status-upcoming">UPCOMING</span> • ${m.minute}`;
+  ? `<span class="status-live">LIVE</span> • ${m.minute}` // show live and minute 
+  : `<span class="status-upcoming">UPCOMING</span> • ${m.minute}`; // if not live, show kickoff time
 
   return `
     <div class="match">
@@ -293,7 +320,7 @@ function formatRightMeta(m){
   return "";
 }
 
-// ---------- Follow state ----------
+// Follow/unfollow a match and re-render UI
 function toggleFollow(matchId, shouldFollow){
   const set = loadFollowedSet();
   if (shouldFollow) set.add(matchId);
@@ -302,7 +329,7 @@ function toggleFollow(matchId, shouldFollow){
   render();
 }
 
-// ---------- Document PiP ----------
+// Picture-in-Picture window handling
 btnOpenPin.addEventListener("click", async () => {
   if (!("documentPictureInPicture" in window)){
     alert("Document PiP not supported. Use Chrome.");
@@ -315,103 +342,105 @@ btnOpenPin.addEventListener("click", async () => {
       height: 240,
     });
 
-    // Minimal styling for the PiP window
-pipWin.document.head.innerHTML = `
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pinned Scores</title>
-  <style>
-    :root{
-      --bg:#f7f7f8;
-      --panel:#ffffff;
-      --text:#111827;
-      --muted:#6b7280;
-      --border:#e5e7eb;
-      --shadow: 0 10px 26px rgba(17, 24, 39, 0.08);
-      --accent:#2563eb;
-      --accentSoft:#eff6ff;
-      --good:#16a34a;
-      --warn:#d97706;
-    }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      background: radial-gradient(900px 600px at 10% 0%, #fff 0%, var(--bg) 60%);
-      color:var(--text);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-    }
-    .wrap{ padding:10px; }
-    .head{
-      display:flex; justify-content:space-between; align-items:flex-end;
-      margin-bottom:10px;
-    }
-    .title{ font-weight:900; font-size:12px; letter-spacing:.2px; }
-    .hint{ font-size:11px; color:var(--muted); }
-    .list{ display:flex; flex-direction:column; gap:8px; }
-    .row{
-      display:flex; justify-content:space-between; align-items:center;
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:10px 10px;
-      background: var(--panel);
-      box-shadow: var(--shadow);
-    }
-    .left{
-      font-weight:950;
-      letter-spacing:.5px;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 240px;
-    }
-    .right{
-      color:var(--muted);
-      font-size:12px;
-      font-variant-numeric: tabular-nums;
-      margin-left:10px;
-      white-space: nowrap;
-    }
-    .empty{
-      border:1px dashed #d1d5db;
-      border-radius:14px;
-      padding:10px;
-      color:var(--muted);
-      background: var(--panel);
-      font-size:12px;
-    }
-  </style>
-`;
+// Styling for the PiP window (minimalism)
+  pipWin.document.head.innerHTML = `
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pinned Scores</title>
+    <style>
+      :root{
+        --bg:#f7f7f8;
+        --panel:#ffffff;
+        --text:#111827;
+        --muted:#6b7280;
+        --border:#e5e7eb;
+        --shadow: 0 10px 26px rgba(17, 24, 39, 0.08);
+        --accent:#2563eb;
+        --accentSoft:#eff6ff;
+        --good:#16a34a;
+        --warn:#d97706;
+      }
+      html,body{ height:100%; }
+      body{
+        margin:0;
+        background: radial-gradient(900px 600px at 10% 0%, #fff 0%, var(--bg) 60%);
+        color:var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      }
+      .wrap{ padding:10px; }
+      .head{
+        display:flex; justify-content:space-between; align-items:flex-end;
+        margin-bottom:10px;
+      }
+      .title{ font-weight:900; font-size:12px; letter-spacing:.2px; }
+      .hint{ font-size:11px; color:var(--muted); }
+      .list{ display:flex; flex-direction:column; gap:8px; }
+      .row{
+        display:flex; justify-content:space-between; align-items:center;
+        border:1px solid var(--border);
+        border-radius:14px;
+        padding:10px 10px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+      .left{
+        font-weight:950;
+        letter-spacing:.5px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 240px;
+      }
+      .right{
+        color:var(--muted);
+        font-size:12px;
+        font-variant-numeric: tabular-nums;
+        margin-left:10px;
+        white-space: nowrap;
+      }
+      .empty{
+        border:1px dashed #d1d5db;
+        border-radius:14px;
+        padding:10px;
+        color:var(--muted);
+        background: var(--panel);
+        font-size:12px;
+      }
+    </style>
+  `;
 
-    pipWin.document.body.innerHTML = `
-      <div class="wrap">
-        <div class="head">
-          <div class="title">Pinned Scores</div>
-          <div class="hint">Close window to unpin</div>
-        </div>
-        <div id="pipList" class="list"></div>
+  pipWin.document.body.innerHTML = `
+    <div class="wrap">
+      <div class="head">
+        <div class="title">Pinned Scores</div>
+        <div class="hint">Close window to unpin</div>
       </div>
-    `;
+      <div id="pipList" class="list"></div>
+    </div>
+  `;
 
-    pipWin.addEventListener("pagehide", () => {
-      pipWin = null;
-      btnClosePin.disabled = true;
-    });
+  pipWin.addEventListener("pagehide", () => {
+    pipWin = null;
+    btnClosePin.disabled = true;
+  });
 
-    btnClosePin.disabled = false;
-    render(); // immediately paint content into PiP
-  }catch (e){
-    console.error(e);
-    alert("Could not open pinned window. Make sure this was triggered by a click and you're on localhost/https.");
-  }
+  btnClosePin.disabled = false;
+  render(); // immediately paint content into PiP
+  } catch (e){
+      console.error(e);
+      alert("Could not open pinned window. Make sure this was triggered by a click and you're on localhost/https.");
+    }
 });
 
+// Close PiP window
 btnClosePin.addEventListener("click", () => {
   if (pipWin && !pipWin.closed) pipWin.close();
   pipWin = null;
   btnClosePin.disabled = true;
 });
 
+// Update content in PiP window
 function renderPinnedWindow(followed){
   if (!pipWin || pipWin.closed) return;
   const list = pipWin.document.getElementById("pipList");
@@ -431,6 +460,7 @@ function renderPinnedWindow(followed){
   }).join("");
 }
 
+// League filter button handling
 leagueFilterEl?.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-filter]");
   if (!btn) return;
@@ -439,6 +469,7 @@ leagueFilterEl?.addEventListener("click", (e) => {
   render();
 });
 
+// Quick action buttons
 btnFollowAllLive.addEventListener("click", () => {
   const live = allMatches().filter(m => m.status === "LIVE");
   if (live.length === 0){
@@ -452,6 +483,7 @@ btnFollowAllLive.addEventListener("click", () => {
   render();
 });
 
+// Clear all followed matches
 btnClearFollows.addEventListener("click", () => {
   saveFollowedSet(new Set());
   toast("Cleared followed matches");
