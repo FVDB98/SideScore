@@ -57,8 +57,13 @@ def api_get(path: str, params: dict):
     # 1) Send GET request 2) raise for HTTP errors 3) return JSON data
     resp = requests.get(url, headers=headers, params=params, timeout=10)
     resp.raise_for_status()
-    return resp.json()
+    data = resp.json()
 
+    errors = data.get("errors") or {}
+    if errors:
+        raise RuntimeError(f"API-Football error: {errors} (path={path}, params={params})")
+    
+    return data
 
 # Simple caching - prevent excessive API calls. (will reset when server / app restarts)
 def cached(key: str, ttl: int, fetcher):

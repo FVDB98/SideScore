@@ -177,7 +177,7 @@ function toast(msg){
   toastEl.textContent = msg;
   toastEl.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1600);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 3200);
 }
 
 // UI refresh - take user preferences (followed matches, league filter) and render the UI
