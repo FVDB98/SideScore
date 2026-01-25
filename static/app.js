@@ -51,6 +51,8 @@ function toMatchModel(f){
   const ag = (f.awayGoals ?? 0);
 
   const kickoff = isoToLocalKickoff(f.kickoffISO); 
+  const homeTeam = (f.homeTeam || f.homeName || f.home || "").trim();
+  const awayTeam = (f.awayTeam || f.awayName || f.away || "").trim();
 
   const status = f.isLive ? "LIVE" : "UPCOMING";
   const meta = f.isLive
@@ -61,6 +63,8 @@ function toMatchModel(f){
     id: f.id,
     home: f.home,
     away: f.away,
+    homeTeam,
+    awayTeam,
     homeGoals: hg,
     awayGoals: ag,
     status,
@@ -219,7 +223,7 @@ function renderFollowed(followed){
   }
 
   followedEl.innerHTML = matches.map(m => {
-    const left = `${getAbbr(m.home)} ${formatScoreline(m)} ${getAbbr(m.away)}`;
+    const left = `${m.homeTeam || m.home} ${formatScoreline(m)} ${m.awayTeam || m.away}`;
     const right = formatRightMeta(m);
     return `
       <div class="pill">
@@ -287,8 +291,8 @@ function renderLeagues(followed, filter){
 function renderMatchRow(m, lg, followed){
   // is this match followed?
   const isFollowed = followed.has(m.id);
-  const homeAb = getAbbr(m.home);
-  const awayAb = getAbbr(m.away);
+  const homeTeam = m.homeTeam || m.home;
+  const awayTeam = m.awayTeam || m.away;
 
   const meta = m.status === "LIVE"
   ? `<span class="status-live">LIVE</span> • ${m.minute}` // show live and minute 
@@ -298,9 +302,9 @@ function renderMatchRow(m, lg, followed){
     <div class="match">
       <div class="left">
         <div class="row">
-          <span class="abbr">${homeAb}</span>
+          <span class="team">${homeTeam}</span>
           <span class="score">${formatScoreline(m)}</span>
-          <span class="abbr">${awayAb}</span>
+          <span class="team">${awayTeam}</span>
         </div>
         <div class="meta">${meta}</div>
       </div>

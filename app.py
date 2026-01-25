@@ -134,6 +134,8 @@ def normalize_fixture(item: dict) -> dict:
         "away": team_abbr(away),
         "homeGoals": goals.get("home"),
         "awayGoals": goals.get("away"),
+        "homeTeam": home.get("name"),
+        "awayTeam": away.get("name"),
     }
 
 
