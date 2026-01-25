@@ -23,7 +23,7 @@
 
   /* Status */
   --good: #16a34a;
-  --warn: #d97706;
+  --warn: #a28462;
 
   /* Primary button */
   --primary: #111827;
@@ -346,7 +346,7 @@ body{
 }
 
 .status-live{ color: var(--good); font-weight: 900; }
-.status-upcoming{ color: var(--warn); font-weight: 900; }
+.status-upcoming{ color: var(--warn); font-weight: 600; }
 
 /* ------ Follow buttons ------ */
 .match .controls{ display:flex; gap: 8px; }
@@ -364,8 +364,8 @@ body{
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
 }
 .smallbtn:hover{
-  background: rgba(255,255,255,1);
-  border-color: rgba(17,24,39,0.18);
+  background: rgba(68, 220, 38, 0.32);
+  border-color: rgba(19, 39, 17, 0.18);
   box-shadow: var(--shadow-xs);
   transform: translateY(-1px);
 }

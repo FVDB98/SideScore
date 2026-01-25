@@ -292,7 +292,7 @@ function renderMatchRow(m, lg, followed){
 
   const meta = m.status === "LIVE"
   ? `<span class="status-live">LIVE</span> • ${m.minute}` // show live and minute 
-  : `<span class="status-upcoming">UPCOMING</span> • ${m.minute}`; // if not live, show kickoff time
+  : `${m.minute}`; // if not live, just show kickoff time
 
   return `
     <div class="match">
