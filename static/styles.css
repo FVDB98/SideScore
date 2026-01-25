@@ -348,6 +348,11 @@ body{
   color: var(--text);
 }
 
+.venue{
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .meta{
   font-size: 12px;
   color: var(--muted);

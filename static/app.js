@@ -54,6 +54,8 @@ function toMatchModel(f){
   const homeTeam = (f.homeTeam || f.homeName || f.home || "").trim();
   const awayTeam = (f.awayTeam || f.awayName || f.away || "").trim();
 
+  const venue = (f.stadium || f.venue || "").trim();
+
   const status = f.isLive ? "LIVE" : "UPCOMING";
   const meta = f.isLive
     ? (f.minute || "")
@@ -70,11 +72,12 @@ function toMatchModel(f){
     status,
     minute: meta,
     kickoff, // useful for followed / PiP
+    venue,
   };
 }
 
 
-// Calling endpoint, finding matches for each league (live first, then upcoming), and normalizing to match model
+// Calling flask endpoint, finding matches for each league (live first, then upcoming), and normalizing to match model
 async function fetchScores(){
   // 1) Request scores from API
   const res = await fetch("/api/scores", { cache: "no-store" });
@@ -294,6 +297,8 @@ function renderMatchRow(m, lg, followed){
   const homeTeam = m.homeTeam || m.home;
   const awayTeam = m.awayTeam || m.away;
 
+  const venue = m.venue || "";
+
   const meta = m.status === "LIVE"
   ? `<span class="status-live">LIVE</span> • ${m.minute}` // show live and minute 
   : `${m.minute}`; // if not live, just show kickoff time
@@ -306,6 +311,7 @@ function renderMatchRow(m, lg, followed){
           <span class="score">${formatScoreline(m)}</span>
           <span class="team">${awayTeam}</span>
         </div>
+        <div class="venue">${venue}</div>
         <div class="meta">${meta}</div>
       </div>
         <div class="controls">

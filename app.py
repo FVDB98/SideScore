@@ -109,6 +109,7 @@ def normalize_fixture(item: dict) -> dict:
     league = item.get("league", {}) or {}
     teams = item.get("teams", {}) or {}
     goals = item.get("goals", {}) or {}
+    venue = fixture.get("venue", {}) or {}
 
     home = teams.get("home", {}) or {}
     away = teams.get("away", {}) or {}
@@ -136,6 +137,7 @@ def normalize_fixture(item: dict) -> dict:
         "awayGoals": goals.get("away"),
         "homeTeam": home.get("name"),
         "awayTeam": away.get("name"),
+        "stadium": venue.get("name"),
     }
 
 
